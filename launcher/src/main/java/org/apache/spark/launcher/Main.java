@@ -51,12 +51,15 @@ class Main {
     checkArgument(argsArray.length > 0, "Not enough arguments: missing class name.");
 
     List<String> args = new ArrayList<>(Arrays.asList(argsArray));
+    //将org.apache.spark.deploy.SparkSubmit参数移除并赋予className变量
     String className = args.remove(0);
+
 
     boolean printLaunchCommand = !isEmpty(System.getenv("SPARK_PRINT_LAUNCH_COMMAND"));
     AbstractCommandBuilder builder;
     if (className.equals("org.apache.spark.deploy.SparkSubmit")) {
       try {
+        //args只包含spark-submit的参数
         builder = new SparkSubmitCommandBuilder(args);
       } catch (IllegalArgumentException e) {
         printLaunchCommand = false;
