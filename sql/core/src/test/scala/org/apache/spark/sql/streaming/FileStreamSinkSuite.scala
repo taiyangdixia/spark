@@ -17,7 +17,9 @@
 
 package org.apache.spark.sql.streaming
 
-import org.apache.spark.sql.DataFrame
+import java.util.Locale
+
+import org.apache.spark.sql.{AnalysisException, DataFrame}
 import org.apache.spark.sql.execution.DataSourceScanExec
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.streaming.{MemoryStream, MetadataLogFileIndex}
@@ -144,7 +146,7 @@ class FileStreamSinkSuite extends StreamTest {
   }
 
   // This tests whether FileStreamSink works with aggregations. Specifically, it tests
-  // whether the the correct streaming QueryExecution (i.e. IncrementalExecution) is used to
+  // whether the correct streaming QueryExecution (i.e. IncrementalExecution) is used to
   // to execute the trigger for writing data to file sink. See SPARK-18440 for more details.
   test("writing with aggregation") {
 
@@ -207,6 +209,26 @@ class FileStreamSinkSuite extends StreamTest {
       if (query != null) {
         query.stop()
       }
+    }
+  }
+
+  test("Update and Complete output mode not supported") {
+    val df = MemoryStream[Int].toDF().groupBy().count()
+    val outputDir = Utils.createTempDir(namePrefix = "stream.output").getCanonicalPath
+
+    withTempDir { dir =>
+
+      def testOutputMode(mode: String): Unit = {
+        val e = intercept[AnalysisException] {
+          df.writeStream.format("parquet").outputMode(mode).start(dir.getCanonicalPath)
+        }
+        Seq(mode, "not support").foreach { w =>
+          assert(e.getMessage.toLowerCase(Locale.ROOT).contains(w))
+        }
+      }
+
+      testOutputMode("update")
+      testOutputMode("complete")
     }
   }
 

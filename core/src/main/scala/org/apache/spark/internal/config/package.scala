@@ -114,8 +114,18 @@ package object config {
       .intConf
       .createWithDefault(2)
 
+  private[spark] val MAX_FAILURES_PER_EXEC =
+    ConfigBuilder("spark.blacklist.application.maxFailedTasksPerExecutor")
+      .intConf
+      .createWithDefault(2)
+
   private[spark] val MAX_FAILURES_PER_EXEC_STAGE =
     ConfigBuilder("spark.blacklist.stage.maxFailedTasksPerExecutor")
+      .intConf
+      .createWithDefault(2)
+
+  private[spark] val MAX_FAILED_EXEC_PER_NODE =
+    ConfigBuilder("spark.blacklist.application.maxFailedExecutorsPerNode")
       .intConf
       .createWithDefault(2)
 
@@ -128,6 +138,11 @@ package object config {
     ConfigBuilder("spark.blacklist.timeout")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
+
+  private[spark] val BLACKLIST_KILL_ENABLED =
+    ConfigBuilder("spark.blacklist.killBlacklistedExecutors")
+      .booleanConf
+      .createWithDefault(false)
 
   private[spark] val BLACKLIST_LEGACY_TIMEOUT_CONF =
     ConfigBuilder("spark.scheduler.executorTaskBlacklistTime")
@@ -198,12 +213,13 @@ package object config {
     .createWithDefault(0)
 
   private[spark] val DRIVER_BLOCK_MANAGER_PORT = ConfigBuilder("spark.driver.blockManager.port")
-    .doc("Port to use for the block managed on the driver.")
+    .doc("Port to use for the block manager on the driver.")
     .fallbackConf(BLOCK_MANAGER_PORT)
 
   private[spark] val IGNORE_CORRUPT_FILES = ConfigBuilder("spark.files.ignoreCorruptFiles")
     .doc("Whether to ignore corrupt files. If true, the Spark jobs will continue to run when " +
-      "encountering corrupt files and contents that have been read will still be returned.")
+      "encountering corrupted or non-existing files and contents that have been read will still " +
+      "be returned.")
     .booleanConf
     .createWithDefault(false)
 
@@ -228,8 +244,38 @@ package object config {
     ConfigBuilder("spark.redaction.regex")
       .doc("Regex to decide which Spark configuration properties and environment variables in " +
         "driver and executor environments contain sensitive information. When this regex matches " +
-        "a property, its value is redacted from the environment UI and various logs like YARN " +
-        "and event logs.")
-      .stringConf
-      .createWithDefault("(?i)secret|password")
+        "a property key or value, the value is redacted from the environment UI and various logs " +
+        "like YARN and event logs.")
+      .regexConf
+      .createWithDefault("(?i)secret|password".r)
+
+  private[spark] val STRING_REDACTION_PATTERN =
+    ConfigBuilder("spark.redaction.string.regex")
+      .doc("Regex to decide which parts of strings produced by Spark contain sensitive " +
+        "information. When this regex matches a string part, that string part is replaced by a " +
+        "dummy value. This is currently used to redact the output of SQL explain commands.")
+      .regexConf
+      .createOptional
+
+  private[spark] val NETWORK_AUTH_ENABLED =
+    ConfigBuilder("spark.authenticate")
+      .booleanConf
+      .createWithDefault(false)
+
+  private[spark] val SASL_ENCRYPTION_ENABLED =
+    ConfigBuilder("spark.authenticate.enableSaslEncryption")
+      .booleanConf
+      .createWithDefault(false)
+
+  private[spark] val NETWORK_ENCRYPTION_ENABLED =
+    ConfigBuilder("spark.network.crypto.enabled")
+      .booleanConf
+      .createWithDefault(false)
+
+  private[spark] val CHECKPOINT_COMPRESS =
+    ConfigBuilder("spark.checkpoint.compress")
+      .doc("Whether to compress RDD checkpoints. Generally a good idea. Compression will use " +
+        "spark.io.compression.codec.")
+      .booleanConf
+      .createWithDefault(false)
 }

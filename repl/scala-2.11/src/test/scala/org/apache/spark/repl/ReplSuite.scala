@@ -45,7 +45,7 @@ class ReplSuite extends SparkFunSuite {
         }
       }
     }
-    val classpath = paths.mkString(File.pathSeparator)
+    val classpath = paths.map(new File(_).getAbsolutePath).mkString(File.pathSeparator)
 
     val oldExecutorClasspath = System.getProperty(CONF_EXECUTOR_CLASSPATH)
     System.setProperty(CONF_EXECUTOR_CLASSPATH, classpath)
@@ -471,6 +471,18 @@ class ReplSuite extends SparkFunSuite {
         |  s"deviation too large: $deviation, first size: $cacheSize1, second size: $cacheSize2")
       """.stripMargin)
     assertDoesNotContain("AssertionError", output)
+    assertDoesNotContain("Exception", output)
+  }
+
+  // TODO: [SPARK-20548] Fix and re-enable
+  ignore("newProductSeqEncoder with REPL defined class") {
+    val output = runInterpreterInPasteMode("local-cluster[1,4,4096]",
+      """
+      |case class Click(id: Int)
+      |spark.implicits.newProductSeqEncoder[Click]
+    """.stripMargin)
+
+    assertDoesNotContain("error:", output)
     assertDoesNotContain("Exception", output)
   }
 }
